@@ -79,9 +79,20 @@ class MeltTestApp(App):
             if not ret or frame is None:
                 return
 
-            h, w, _ = frame.shape
+            # БЕЗОПАСНОЕ ПОЛУЧЕНИЕ РАЗМЕРОВ (Решает проблему expected 3, got 2)
+            shape = frame.shape
+            h, w = shape[0], shape[1]
+            channels = shape[2] if len(shape) > 2 else 1
+
             obj_x, melt_x = None, None
-            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+            # Если камера вернула уже серый кадр, не ломаем код конвертацией
+            if channels == 1:
+                gray = frame.copy()
+                # Переводим в BGR только для того, чтобы рисовать цветные линии поверх
+                frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+            else:
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
             # Поиск маркеров с поддержкой старого и нового API OpenCV
             if not self.legacy_aruco:
@@ -97,11 +108,9 @@ class MeltTestApp(App):
                     self.px_to_mm = ARUCO_REAL_SIZE_MM / marker_width_px
                 cv2.polylines(frame, [c.astype(int)], True, (0, 0, 255), 2)
 
-            # Бинаризация и поиск контуров (исправленный unpack под любую версию OpenCV)
+            # Бинаризация и поиск контуров 
             _, thresh = cv2.threshold(gray, 230, 255, cv2.THRESH_BINARY)
             find_res = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            
-            # Если вернулось 3 значения (старый OpenCV), берем контуры из второго. Если 2 значения — из первого.
             contours = find_res[1] if len(find_res) == 3 else find_res[0]
 
             if contours:
