@@ -21,12 +21,18 @@ class MeltTestApp(App):
         self.layout.add_widget(self.status_label)
         
         self.capture = None
+        
+        # Универсальная инициализация ArUco для разных версий OpenCV
         self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
         self.aruco_params = cv2.aruco.DetectorParameters()
-        self.detector = cv2.aruco.ArucoDetector(self.aruco_dict, self.aruco_params)
+        try:
+            self.detector = cv2.aruco.ArucoDetector(self.aruco_dict, self.aruco_params)
+            self.legacy_aruco = False
+        except AttributeError:
+            self.legacy_aruco = True
+            
         self.px_to_mm = 0.1
 
-        # Безопасный запуск: даем Kivy сначала полностью отрисовать интерфейс
         Clock.schedule_once(self.prepare_camera, 1.0)
         return self.layout
 
@@ -46,17 +52,14 @@ class MeltTestApp(App):
 
     def check_permissions(self, permissions, grants):
         if grants and grants[0]:
-            # Небольшая пауза после выдачи прав, чтобы Android освободил ресурс камеры
             Clock.schedule_once(lambda dt: self.start_camera(), 0.5)
         else:
             self.status_label.text = "[color=ff3333]Нет доступа к камере в системе![/color]"
 
     def start_camera(self):
         try:
-            # Пробуем индекс 0 (основная камера)
             self.capture = cv2.VideoCapture(0)
             if not self.capture.isOpened():
-                # Если не открылась, пробуем индекс 1 (иногда на Android это срабатывает)
                 self.capture = cv2.VideoCapture(1)
                 
             if self.capture.isOpened():
@@ -78,10 +81,15 @@ class MeltTestApp(App):
 
             h, w, _ = frame.shape
             obj_x, melt_x = None, None
-
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            corners, ids, _ = self.detector.detectMarkers(gray)
-            if ids is not None:
+
+            # Поиск маркеров с поддержкой старого и нового API OpenCV
+            if not self.legacy_aruco:
+                corners, ids, _ = self.detector.detectMarkers(gray)
+            else:
+                corners, ids, _ = cv2.aruco.detectMarkers(gray, self.aruco_dict, parameters=self.aruco_params)
+
+            if ids is not None and len(ids) > 0:
                 c = corners[0][0]
                 obj_x = int((c[0][0] + c[2][0]) / 2)
                 marker_width_px = np.linalg.norm(c[0] - c[1])
@@ -89,8 +97,13 @@ class MeltTestApp(App):
                     self.px_to_mm = ARUCO_REAL_SIZE_MM / marker_width_px
                 cv2.polylines(frame, [c.astype(int)], True, (0, 0, 255), 2)
 
+            # Бинаризация и поиск контуров (исправленный unpack под любую версию OpenCV)
             _, thresh = cv2.threshold(gray, 230, 255, cv2.THRESH_BINARY)
-            contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            find_res = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            
+            # Если вернулось 3 значения (старый OpenCV), берем контуры из второго. Если 2 значения — из первого.
+            contours = find_res[1] if len(find_res) == 3 else find_res[0]
+
             if contours:
                 largest_contour = max(contours, key=cv2.contourArea)
                 M = cv2.moments(largest_contour)
