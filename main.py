@@ -6,7 +6,9 @@ from kivy.clock import Clock
 from kivy.graphics.texture import Texture
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
+from kivy.utils import platform
 
+# Константы для детекции
 ARUCO_REAL_SIZE_MM = 10.0
 TARGET_DIST_MIN_MM = 4.0
 TARGET_DIST_MAX_MM = 5.0
@@ -19,18 +21,41 @@ class MeltTestApp(App):
         self.status_label = Label(text="Ожидание...", size_hint_y=0.2, markup=True)
         self.layout.add_widget(self.status_label)
         
-        self.capture = cv2.VideoCapture(0)
+        self.capture = None
         self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
         self.aruco_params = cv2.aruco.DetectorParameters()
         self.detector = cv2.aruco.ArucoDetector(self.aruco_dict, self.aruco_params)
         self.px_to_mm = 0.1
 
-        Clock.schedule_interval(self.update, 1.0 / 20.0)
+        # Проверяем платформу: если это Android, сначала просим права
+        if platform == 'android':
+            from android.permissions import request_permissions, Permission
+            request_permissions([Permission.CAMERA], self.check_permissions)
+        else:
+            self.start_camera()
+
         return self.layout
 
+    def check_permissions(self, permissions, grants):
+        # Если разрешение на камеру получено, запускаем её
+        if grants[0]:
+            self.start_camera()
+        else:
+            self.status_label.text = "[color=ff3333]Ошибка: Нет доступа к камере![/color]"
+
+    def start_camera(self):
+        # На некоторых телефонах встроенная камера имеет индекс 0, на мультиках бывает 1
+        self.capture = cv2.VideoCapture(0)
+        Clock.schedule_interval(self.update, 1.0 / 20.0)
+
     def update(self, dt):
+        if self.capture is None or not self.capture.isOpened():
+            return
+            
         ret, frame = self.capture.read()
-        if not ret: return
+        if not ret or frame is None: 
+            return
+            
         h, w, _ = frame.shape
         obj_x, melt_x = None, None
 
@@ -70,5 +95,10 @@ class MeltTestApp(App):
         texture.blit_buffer(buffer, colorfmt='bgr', bufferfmt='ubyte')
         self.image_widget.texture = texture
 
+    def on_stop(self):
+        if self.capture is not None:
+            self.capture.release()
+
 if __name__ == '__main__':
     MeltTestApp().run()
+    
