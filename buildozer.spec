@@ -1,4 +1,3 @@
-
 [app]
 
 # (str) Title of your application
@@ -40,9 +39,6 @@ android.minapi = 21
 
 # (str) Android NDK version to use
 android.ndk = 25b
-
-# ИСПРАВЛЕНО: Жестко фиксируем версию build-tools, чтобы избежать бага с лицензиями версии 37
-android.build_tools_version = 33.0.0
 
 # (bool) Use --private data storage for binary leak protection
 android.private_storage = True
