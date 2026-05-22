@@ -19,21 +19,8 @@ source.include_exts = py,png,jpg,kv,atlas
 version = 0.1
 
 # (list) Application requirements
-# Здесь мы четко указываем OpenCV и NumPy, которые нужны для детекции
-requirements = python3,kivy,numpy,opencv-python
-
-# (str) Custom source folders for requirements
-# This can be comma separated list of folders
-# requirements.source.kivy = ../../kivy
-
-# (list) Garden requirements
-#garden_requirements =
-
-# (list) Presplash of the application
-#presplash.filename = %(source.dir)s/data/presplash.png
-
-# (list) Icon of the application
-#icon.filename = %(source.dir)s/data/icon.png
+# ИСПРАВЛЕНО: используем рецепт opencv вместо opencv-python и добавляем pyjnius для работы нативной камеры Kivy
+requirements = python3, kivy, numpy, opencv, pyjnius
 
 # (str) Supported orientations (landscape, portrait or all)
 orientation = portrait
@@ -43,7 +30,7 @@ orientation = portrait
 # =============================================================================
 
 # (list) Permissions
-# Самое главное — даем приложению легальный доступ к железкам смартфона
+# Разрешения на использование камеры и запись звука
 android.permissions = CAMERA, RECORD_AUDIO
 
 # (int) Target Android API, should be as high as possible.
@@ -58,34 +45,13 @@ android.ndk = 25b
 # (bool) Use --private data storage for binary leak protection
 android.private_storage = True
 
-# (str) Android NDK directory (if empty, it will be automatically downloaded)
-#android.ndk_path =
-
-# (str) Android SDK directory (if empty, it will be automatically downloaded)
-#android.sdk_path =
-
-# (str) ANT directory (if empty, it will be automatically downloaded)
-#android.ant_path =
-
 # (list) Android architectures to build for
-# Оптимизируем под современные 64-битные процессоры
+# Сборка под современные 64-битные процессоры
 android.archs = arm64-v8a
 
-# (bool) Allow service to be foreground
-#android.service_foreground = False
-
-# (list) Android application meta-data to set (key=value)
-#android.meta_data =
-
-# (list) Android library project to add (paths)
-#android.add_libs =
-
 # (str) Android logcat filters to use
-# Настройка отладки — чтобы в логах Android было видно ошибки нашего Python-кода
+# Фильтр логов, чтобы ловить ошибки Python, если они появятся
 android.logcat_filters = *:S python:D
-
-# (bool) Copy library instead of making a symlink
-#android.copy_libs = 1
 
 # (str) The Android architectural type to target (either 'main' or 'activity')
 android.type = main
