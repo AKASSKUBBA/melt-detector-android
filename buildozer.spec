@@ -1,47 +1,65 @@
 
-name: Build Android APK
+[app]
 
-on:
-push:
-branches: [ "main" ]
-workflow_dispatch:
+# (str) Title of your application
+title = MeltDetector
 
-jobs:
-build:
-runs-on: ubuntu-22.04
+# (str) Package name
+package.name = meltdetector
 
-steps:
-- name: Checkout code
-uses: actions/checkout@v4
+# (str) Package domain (needed for android packaging)
+package.domain = org.test
 
-- name: Set up Python
-uses: actions/setup-python@v5
-with:
-python-version: '3.10'
+# (str) Source code directory
+source.dir = .
 
-- name: Set up JDK
-uses: actions/setup-java@v4
-with:
-distribution: 'temurin'
-java-version: '17'
+# (list) Source files to include (let empty to include all the files)
+source.include_exts = py,png,jpg,kv,atlas
 
-- name: Cache Buildozer
-uses: actions/cache@v4
-with:
-path: .buildozer
-key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
-restore-keys: |
-${{ runner.os }}-buildozer-
+# (str) Application versioning (method 1)
+version = 0.1
 
-- name: Install Buildozer and Dependencies
-run: |
-sudo apt-get update
-sudo apt-get install -y build-essential ccache git libffi-dev libssl-dev autoconf automake libtool pkg-config zlib1g-dev python3-pip cmake g++
-pip install --upgrade pip
-pip install buildozer cython virtualenv
+# (list) Application requirements
+requirements = python3, kivy, numpy, opencv-python, pyjnius
 
-- name: Build APK with Buildozer
-run: |
-# Переменная для автоматического согласия внутри самого Buildozer
-export APP_ALLOW_SDK_WARNINGS=1
-buildozer android debug
+# (str) Supported orientations (landscape, portrait or all)
+orientation = portrait
+
+# =============================================================================
+# Android specific
+# =============================================================================
+
+# (list) Permissions
+android.permissions = CAMERA, RECORD_AUDIO
+
+# (int) Target Android API
+android.api = 33
+
+# (int) Minimum API your APK will support.
+android.minapi = 21
+
+# (str) Android NDK version to use
+android.ndk = 25b
+
+# ИСПРАВЛЕНО: Жестко фиксируем версию build-tools, чтобы избежать бага с лицензиями версии 37
+android.build_tools_version = 33.0.0
+
+# (bool) Use --private data storage for binary leak protection
+android.private_storage = True
+
+# (list) Android architectures to build for
+android.archs = arm64-v8a
+
+# (str) Android logcat filters to use
+android.logcat_filters = *:S python:D
+
+# (str) The Android architectural type to target (either 'main' or 'activity')
+android.type = main
+
+[buildozer]
+
+# (int) Log level (0 = error only, 1 = info, 2 = debug (with command output))
+log_level = 2
+
+# (int) Display warning if buildozer is run as root (0 = False, 1 = True)
+warn_on_root = 1
