@@ -41,21 +41,21 @@ jobs:
 
     - name: Build APK with Buildozer
       run: |
-        # Жестко принимаем лицензии через все возможные пути sdkmanager в GitHub Actions
+        # Гарантированно обновляем sdkmanager и подписываем ВСЕ лицензии (включая 37-ю версию)
         mkdir -p ~/.android
         touch ~/.android/repositories.cfg
         
-        # Пробуем дефолтный системный путь, путь из переменной и старый путь
-        yes | sdkmanager --licenses || true
-        if [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-        elif [ -f "$ANDROID_HOME/tools/bin/sdkmanager" ]; then
-          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses
+        # Находим и используем правильный sdkmanager из установленного в GitHub Actions SDK
+        export SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+        if [ ! -f "$SDK_MANAGER" ]; then
+            SDK_MANAGER="sdkmanager"
         fi
         
-        # Дополнительно принимаем лицензии конкретно для build-tools, на которых всё валится
-        yes | sdkmanager "build-tools;37.0.0" || true
+        # Обновляем сам менеджер лицензий и принудительно соглашаемся со всем
+        yes | $SDK_MANAGER --update || true
+        yes | $SDK_MANAGER --licenses || true
 
         # Запускаем сборку приложения
+        export APP_ALLOW_SDK_WARNINGS=1
         buildozer android debug
         
