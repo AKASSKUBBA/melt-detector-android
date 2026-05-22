@@ -1,4 +1,3 @@
-
 [app]
 
 # (str) Title of your application
@@ -32,7 +31,7 @@ orientation = portrait
 # (list) Permissions
 android.permissions = CAMERA, RECORD_AUDIO
 
-# (int) Target Android API, should be as high as possible.
+# (int) Target Android API
 android.api = 33
 
 # (int) Minimum API your APK will support.
@@ -40,6 +39,9 @@ android.minapi = 21
 
 # (str) Android NDK version to use
 android.ndk = 25b
+
+# ИСПРАВЛЕНО: Жестко фиксируем версию build-tools, чтобы избежать бага с лицензиями версии 37
+android.build_tools_version = 33.0.0
 
 # (bool) Use --private data storage for binary leak protection
 android.private_storage = True
