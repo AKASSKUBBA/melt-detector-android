@@ -41,11 +41,21 @@ jobs:
 
     - name: Build APK with Buildozer
       run: |
-        # Автоматически принимаем все лицензии Android SDK до запуска Buildozer
+        # Жестко принимаем лицензии через все возможные пути sdkmanager в GitHub Actions
         mkdir -p ~/.android
         touch ~/.android/repositories.cfg
-        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses
         
-        # Запускаем сборку
+        # Пробуем дефолтный системный путь, путь из переменной и старый путь
+        yes | sdkmanager --licenses || true
+        if [ -f "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" ]; then
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+        elif [ -f "$ANDROID_HOME/tools/bin/sdkmanager" ]; then
+          yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses
+        fi
+        
+        # Дополнительно принимаем лицензии конкретно для build-tools, на которых всё валится
+        yes | sdkmanager "build-tools;37.0.0" || true
+
+        # Запускаем сборку приложения
         buildozer android debug
         
