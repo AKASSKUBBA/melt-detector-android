@@ -41,7 +41,11 @@ jobs:
 
     - name: Build APK with Buildozer
       run: |
-        # Используем штатную переменную для автоматического принятия лицензий Android SDK
-        export APP_ALLOW_SDK_WARNINGS=1
+        # Автоматически принимаем все лицензии Android SDK до запуска Buildozer
+        mkdir -p ~/.android
+        touch ~/.android/repositories.cfg
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || yes | $ANDROID_HOME/tools/bin/sdkmanager --licenses
+        
+        # Запускаем сборку
         buildozer android debug
         
