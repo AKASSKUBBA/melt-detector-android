@@ -24,7 +24,6 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    # ВОТ ОН, ВОЗВРАЩАЕМ КЭШ:
     - name: Cache Buildozer
       uses: actions/cache@v4
       with:
@@ -33,7 +32,6 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-buildozer-
 
-     Berk
     - name: Install Buildozer and Dependencies
       run: |
         sudo apt-get update
