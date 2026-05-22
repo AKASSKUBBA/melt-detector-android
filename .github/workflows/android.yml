@@ -24,14 +24,7 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Cache Buildozer
-      uses: actions/cache@v4
-      with:
-        path: .buildozer
-        key: ${{ runner.os }}-buildozer-${{ hashFiles('buildozer.spec') }}
-        restore-keys: |
-          ${{ runner.os }}-buildozer-
-
+    # Мы временно убираем старый кэш, чтобы сбросить битые скачанные пакеты
     - name: Install Buildozer and Dependencies
       run: |
         sudo apt-get update
@@ -41,21 +34,16 @@ jobs:
 
     - name: Build APK with Buildozer
       run: |
-        # Гарантированно обновляем sdkmanager и подписываем ВСЕ лицензии (включая 37-ю версию)
+        # Подписываем лицензии в системном SDK
         mkdir -p ~/.android
         touch ~/.android/repositories.cfg
+        yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
         
-        # Находим и используем правильный sdkmanager из установленного в GitHub Actions SDK
-        export SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
-        if [ ! -f "$SDK_MANAGER" ]; then
-            SDK_MANAGER="sdkmanager"
-        fi
-        
-        # Обновляем сам менеджер лицензий и принудительно соглашаемся со всем
-        yes | $SDK_MANAGER --update || true
-        yes | $SDK_MANAGER --licenses || true
-
-        # Запускаем сборку приложения
+        # Экспортируем жесткие пути к системному SDK и NDK для Buildozer
+        export BUILDOZER_ANDROID_SDK_DIR="$ANDROID_HOME"
+        export BUILDOZER_ANDROID_NDK_DIR="$ANDROID_NDK_LATEST_HOME"
         export APP_ALLOW_SDK_WARNINGS=1
+        
+        # Запускаем сборку
         buildozer android debug
         
