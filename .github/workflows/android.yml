@@ -24,7 +24,6 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    # Мы временно убираем старый кэш, чтобы сбросить битые скачанные пакеты
     - name: Install Buildozer and Dependencies
       run: |
         sudo apt-get update
@@ -34,14 +33,24 @@ jobs:
 
     - name: Build APK with Buildozer
       run: |
-        # Подписываем лицензии в системном SDK
+        # 1. Принимаем лицензии в системном SDK GitHub Actions
         mkdir -p ~/.android
         touch ~/.android/repositories.cfg
         yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
         
-        # Экспортируем жесткие пути к системному SDK и NDK для Buildozer
-        export BUILDOZER_ANDROID_SDK_DIR="$ANDROID_HOME"
-        export BUILDOZER_ANDROID_NDK_DIR="$ANDROID_NDK_LATEST_HOME"
+        # 2. ХАК ДЛЯ BUILDOZER: Создаем структуру папок внутренних лицензий до запуска
+        # Это заставит внутренний SDK сборщика сразу увидеть одобрение лицензий
+        mkdir -p /home/runner/.buildozer/android/platform/android-sdk/licenses
+        
+        # Копируем уже подписанные системные лицензии во внутреннюю папку Buildozer
+        if [ -d "$ANDROID_HOME/licenses" ]; then
+          cp -r $ANDROID_HOME/licenses/* /home/runner/.buildozer/android/platform/android-sdk/licenses/ || true
+        fi
+
+        # На всякий случай генерируем хэши стандартных лицензий Google вручную
+        echo -e "\n24ab665f47d5a3b2e03b39226044047464d6346c\n84831b9409646a918e30573bab4c9c91346d8abd\n504667f4c0de7af1a06de9f4b1727b84351f2910" > /home/runner/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+
+        # Разрешаем предупреждения
         export APP_ALLOW_SDK_WARNINGS=1
         
         # Запускаем сборку
