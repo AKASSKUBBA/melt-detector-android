@@ -19,7 +19,6 @@ source.include_exts = py,png,jpg,kv,atlas
 version = 0.1
 
 # (list) Application requirements
-# ИСПРАВЛЕНО: возвращаем opencv-python для быстрой сборки + оставляем pyjnius для нативной Kivy-камеры
 requirements = python3, kivy, numpy, opencv-python, pyjnius
 
 # (str) Supported orientations (landscape, portrait or all)
@@ -30,7 +29,6 @@ orientation = portrait
 # =============================================================================
 
 # (list) Permissions
-# Системные разрешения для доступа к камере и микрофону
 android.permissions = CAMERA, RECORD_AUDIO
 
 # (int) Target Android API, should be as high as possible.
@@ -46,11 +44,9 @@ android.ndk = 25b
 android.private_storage = True
 
 # (list) Android architectures to build for
-# Сборка под стандартные современные 64-битные чипы
 android.archs = arm64-v8a
 
 # (str) Android logcat filters to use
-# Ловим логи нашего Python-приложения при отладке
 android.logcat_filters = *:S python:D
 
 # (str) The Android architectural type to target (either 'main' or 'activity')
