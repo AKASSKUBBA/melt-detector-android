@@ -21,8 +21,9 @@ class MeltTestApp(App):
         self.layout.add_widget(self.status_label)
         
         self.capture = None
+        self.frame_count = 0
         
-        # Универсальная инициализация ArUco для разных версий OpenCV
+        # Универсальная инициализация ArUco
         self.aruco_dict = cv2.aruco.getPredefinedDictionary(cv2.aruco.DICT_4X4_50)
         self.aruco_params = cv2.aruco.DetectorParameters()
         try:
@@ -58,15 +59,27 @@ class MeltTestApp(App):
 
     def start_camera(self):
         try:
-            self.capture = cv2.VideoCapture(0)
+            # На Android пробуем разные бэкенды, если стандартный не заводится
+            if platform == 'android':
+                # CAP_ANDROID — специализированный бэкенд для Android в OpenCV
+                self.capture = cv2.VideoCapture(0, cv2.CAP_ANDROID)
+                if not self.capture.isOpened():
+                    self.capture = cv2.VideoCapture(0)
+            else:
+                self.capture = cv2.VideoCapture(0)
+                
             if not self.capture.isOpened():
                 self.capture = cv2.VideoCapture(1)
-                
+
             if self.capture.isOpened():
-                self.status_label.text = "[color=33ff33]Камера запущена. Ожидание кадра...[/color]"
+                # Пробуем выставить базовое разрешение для стабильности потока
+                self.capture.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+                self.capture.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+                
+                self.status_label.text = "[color=33ff33]Камера успешно подключена. Ожидаем поток кадра...[/color]"
                 Clock.schedule_interval(self.update, 1.0 / 20.0)
             else:
-                self.status_label.text = "[color=ff3333]Не удалось открыть устройство камеры[/color]"
+                self.status_label.text = "[color=ff3333]Не удалось инициализировать камеру (isOpened=False)[/color]"
         except Exception as e:
             self.status_label.text = f"[color=ff3333]Ошибка старта: {str(e)}[/color]"
 
@@ -77,24 +90,25 @@ class MeltTestApp(App):
         try:
             ret, frame = self.capture.read()
             if not ret or frame is None:
+                # Если девайс открыт, но кадры не идут — выведем счетчик попыток
+                self.frame_count += 1
+                if self.frame_count % 10 == 0:
+                    self.status_label.text = f"[color=ffff33]Камера открыта, но кадр пустой (попытка {self.frame_count})[/color]"
                 return
 
-            # БЕЗОПАСНОЕ ПОЛУЧЕНИЕ РАЗМЕРОВ (Решает проблему expected 3, got 2)
             shape = frame.shape
             h, w = shape[0], shape[1]
             channels = shape[2] if len(shape) > 2 else 1
 
             obj_x, melt_x = None, None
 
-            # Если камера вернула уже серый кадр, не ломаем код конвертацией
             if channels == 1:
                 gray = frame.copy()
-                # Переводим в BGR только для того, чтобы рисовать цветные линии поверх
                 frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
             else:
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            # Поиск маркеров с поддержкой старого и нового API OpenCV
+            # Поиск маркеров
             if not self.legacy_aruco:
                 corners, ids, _ = self.detector.detectMarkers(gray)
             else:
@@ -108,7 +122,7 @@ class MeltTestApp(App):
                     self.px_to_mm = ARUCO_REAL_SIZE_MM / marker_width_px
                 cv2.polylines(frame, [c.astype(int)], True, (0, 0, 255), 2)
 
-            # Бинаризация и поиск контуров 
+            # Бинаризация и контуры
             _, thresh = cv2.threshold(gray, 230, 255, cv2.THRESH_BINARY)
             find_res = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             contours = find_res[1] if len(find_res) == 3 else find_res[0]
@@ -120,17 +134,21 @@ class MeltTestApp(App):
                     melt_x = int(M["m10"] / M["m00"])
                     cv2.line(frame, (melt_x, 0), (melt_x, h), (255, 0, 0), 2)
 
+            # Отображение статуса детекции
             if obj_x is not None and melt_x is not None:
                 min_px = int(TARGET_DIST_MIN_MM / self.px_to_mm)
                 max_px = int(TARGET_DIST_MAX_MM / self.px_to_mm)
                 cv2.rectangle(frame, (melt_x - max_px, 0), (melt_x - min_px, h), (0, 255, 0), 2)
                 current_dist_mm = (melt_x - obj_x) * self.px_to_mm
+                
                 if current_dist_mm < TARGET_DIST_MIN_MM:
                     self.status_label.text = f"Дистанция: {current_dist_mm:.2f} мм\n[color=ff3333]БЛИЗКО[/color]"
                 elif current_dist_mm > TARGET_DIST_MAX_MM:
                     self.status_label.text = f"Дистанция: {current_dist_mm:.2f} мм\n[color=ffff33]ДАЛЕКО[/color]"
                 else:
                     self.status_label.text = f"Дистанция: {current_dist_mm:.2f} мм\n[color=33ff33]ОК[/color]"
+            else:
+                self.status_label.text = f"[color=33ffff]Поток идет ({w}x{h}). Ожидание маркера ArUco...[/color]"
 
             buffer = cv2.flip(frame, 0).tobytes()
             texture = Texture.create(size=(w, h), colorfmt='bgr')
@@ -138,7 +156,7 @@ class MeltTestApp(App):
             self.image_widget.texture = texture
             
         except Exception as e:
-            self.status_label.text = f"[color=ff3333]Ошибка кадра: {str(e)}[/color]"
+            self.status_label.text = f"[color=ff3333]Ошибка обработки кадра: {str(e)}[/color]"
 
     def on_stop(self):
         if self.capture is not None:
